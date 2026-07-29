@@ -65,13 +65,71 @@ Install only the CLI required for the selected track:
 
 ```bash
 # Microsoft 365 delegated integration only
-az version
 npm install -g @pnp/cli-microsoft365@11.10.0
 m365 version
 
 # Microsoft Teams channel only
 npm install -g @microsoft/teams.cli@3.0.3
 teams --version
+```
+
+After cloning or downloading the customer onboarding repository, check the
+workstation first:
+
+```bash
+./scripts/check-m365-prerequisites.sh
+```
+
+If the checker reports missing tools, use one of the install blocks below or the
+customer's approved software distribution process, then close and reopen the
+terminal and run the checker again.
+
+Windows PowerShell, run as Administrator:
+
+```powershell
+winget install --exact --id Git.Git
+winget install --exact --id OpenJS.NodeJS.LTS
+winget install --exact --id jqlang.jq
+winget install --exact --id Microsoft.AzureCLI
+npm install -g @pnp/cli-microsoft365@11.10.0
+```
+
+Close and reopen the terminal after `winget` installs the tools. Run the shell
+scripts from Git Bash, WSL, or another Bash-compatible shell.
+
+macOS:
+
+```bash
+command -v brew >/dev/null 2>&1 || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew update
+brew install git node jq azure-cli
+npm install -g @pnp/cli-microsoft365@11.10.0
+```
+
+Ubuntu or WSL:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y git curl jq ca-certificates
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | bash
+. "$HOME/.nvm/nvm.sh"
+nvm install --lts
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+npm install -g @pnp/cli-microsoft365@11.10.0
+```
+
+If security policy blocks direct install scripts from the internet, install
+Node.js, Azure CLI, and CLI for Microsoft 365 through the organization's
+approved software catalog instead.
+
+For a quick manual preflight:
+
+```bash
+node --version
+npm --version
+jq --version
+az version
+m365 version
 ```
 
 The scripts verify the signed-in Microsoft Tenant ID before creating resources.

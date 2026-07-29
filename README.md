@@ -29,15 +29,75 @@ The Microsoft 365 delegated integration track also requires:
 - Global Administrator, or equivalent consent authority, if the script should
   grant admin consent.
 
-Install and preflight the Microsoft 365 tools:
+After cloning or downloading this repository, check the workstation first:
+
+```bash
+./scripts/check-m365-prerequisites.sh
+```
+
+If the checker reports missing tools, install the missing prerequisites and run
+the checker again.
+
+For a quick manual preflight:
 
 ```bash
 node --version
 npm --version
 jq --version
 az version
-npm install -g @pnp/cli-microsoft365@11.10.0
 m365 version
+```
+
+## Install Missing Prerequisites
+
+If the checker reports missing tools, use the block that matches the
+administrator workstation. Use the customer's approved software distribution
+process if direct package-manager installation is restricted.
+
+### Windows PowerShell
+
+Run PowerShell as Administrator:
+
+```powershell
+winget install --exact --id Git.Git
+winget install --exact --id OpenJS.NodeJS.LTS
+winget install --exact --id jqlang.jq
+winget install --exact --id Microsoft.AzureCLI
+npm install -g @pnp/cli-microsoft365@11.10.0
+```
+
+Close and reopen the terminal after `winget` installs the tools. Run the shell
+scripts from Git Bash, WSL, or another Bash-compatible shell.
+
+### macOS
+
+```bash
+command -v brew >/dev/null 2>&1 || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew update
+brew install git node jq azure-cli
+npm install -g @pnp/cli-microsoft365@11.10.0
+```
+
+### Ubuntu Or WSL
+
+```bash
+sudo apt-get update
+sudo apt-get install -y git curl jq ca-certificates
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | bash
+. "$HOME/.nvm/nvm.sh"
+nvm install --lts
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+npm install -g @pnp/cli-microsoft365@11.10.0
+```
+
+If security policy blocks direct install scripts from the internet, install
+Node.js, Azure CLI, and CLI for Microsoft 365 through the organization's
+approved software catalog instead.
+
+After installation, close and reopen the terminal, then confirm:
+
+```bash
+./scripts/check-m365-prerequisites.sh
 ```
 
 Before running the Microsoft 365 provisioning script, sign in to the target
@@ -57,6 +117,7 @@ onboarding.
 From this package directory:
 
 ```bash
+./scripts/check-m365-prerequisites.sh
 ./scripts/provision-clim365-app.sh --help
 ./scripts/provision-clim365-app.sh --print-input-template
 ./scripts/provision-aria-msteams-bot.sh --help
@@ -71,6 +132,7 @@ Use the detailed guide in
 | --- | --- | --- |
 | `docs/microsoft-customer-onboarding.md` | Customer admin and ARIA operator | Full onboarding guide, ownership model, inputs, outputs, and operator settings |
 | `scripts/provision-clim365-app.sh` | Customer admin | Creates or updates the Microsoft 365 delegated App Registration |
+| `scripts/check-m365-prerequisites.sh` | Customer admin | Checks local tools required for Microsoft 365 delegated onboarding |
 | `scripts/verify-clim365-access.sh` | Customer admin or ARIA operator | Verifies delegated CLI for Microsoft 365 access after login |
 | `scripts/provision-aria-msteams-bot.sh` | Customer admin | Creates the optional Microsoft Teams app and bot package |
 | `scripts/validate-msteams-handoff.sh` | Customer admin or ARIA operator | Validates Teams handoff files without printing secret values |

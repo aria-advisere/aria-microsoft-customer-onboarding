@@ -5,6 +5,7 @@
   "description": "Customer-facing ARIA Microsoft 365 and Microsoft Teams onboarding package.",
   "scripts": {
     "test": "bash -n scripts/*.sh",
+    "check:microsoft365": "bash scripts/check-m365-prerequisites.sh",
     "help:microsoft365": "bash scripts/provision-clim365-app.sh --help",
     "template:microsoft365": "bash scripts/provision-clim365-app.sh --print-input-template",
     "verify:microsoft365:help": "bash scripts/verify-clim365-access.sh --help",

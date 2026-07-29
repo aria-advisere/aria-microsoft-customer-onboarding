@@ -55,6 +55,7 @@ What this creates:
 
 Required before running:
   Bash, Node.js 20+, npm, jq, Azure CLI, and CLI for Microsoft 365 11.10.0.
+  ./scripts/check-m365-prerequisites.sh
   npm install -g @pnp/cli-microsoft365@11.10.0
   m365 version
   az login --tenant <TENANT_ID> --allow-no-subscriptions

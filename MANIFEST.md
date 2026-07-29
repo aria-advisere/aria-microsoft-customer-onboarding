@@ -6,6 +6,7 @@
 | --- | --- |
 | `README.md` | Package entry point and quick-start instructions |
 | `docs/microsoft-customer-onboarding.md` | Complete customer onboarding guide |
+| `scripts/check-m365-prerequisites.sh` | Microsoft 365 prerequisite checker |
 | `scripts/provision-clim365-app.sh` | Microsoft 365 delegated App Registration script |
 | `scripts/verify-clim365-access.sh` | Microsoft 365 delegated access verifier |
 | `scripts/provision-aria-msteams-bot.sh` | Optional Microsoft Teams app and bot provisioning script |
