@@ -164,7 +164,7 @@ The customer must resolve or approve these values before running the script.
 | Input | Example | Owner | Notes |
 | --- | --- | --- | --- |
 | Microsoft Tenant ID | `00000000-0000-0000-0000-000000000000` | Customer | Used by `az login` and `--tenant-id`; prevents wrong-tenant setup |
-| Integration user UPN | `aria.integration@contoso.com` | Customer | Dedicated non-admin user whose mailbox, calendar, OneDrive, and SharePoint access bound ARIA |
+| Integration user UPN | `aria.integration@contoso.com` | Customer | Dedicated non-admin user that ARIA will use for delegated login and runtime verification |
 | Enabled workloads | Outlook, Calendar, SharePoint, Drive | Customer + ARIA | Use `--disable-*` flags to reduce scope |
 | Microsoft 365 app display name | `ARIA - Contoso - Microsoft 365 Integration` | Customer + ARIA | Naming convention can be suggested by ARIA, approved by customer |
 | SharePoint site URL | `https://contoso.sharepoint.com/sites/ARIA` | Customer | Required only when SharePoint is enabled |
@@ -174,6 +174,32 @@ The customer must resolve or approve these values before running the script.
 
 `SHAREPOINT_SITE_ID` is not an input. Microsoft Graph resolves it by path after
 the first delegated login.
+
+### Why The Integration User UPN Is Required
+
+The App Registration is single-tenant, so any allowed user in that Microsoft
+tenant could technically complete a delegated device-code login after consent.
+However, `clim365` runs with the effective permissions of the signed-in user,
+not as a tenant-wide app-only identity.
+
+ARIA therefore binds the integration to one declared, dedicated user. That UPN
+lets the handoff and verifier confirm that the runtime login was completed as
+the intended identity. It also makes the security boundary predictable:
+
+- Outlook and Calendar actions apply to that user's mailbox and calendar;
+- OneDrive actions apply to that user's OneDrive, if Drive is enabled;
+- SharePoint actions are limited by that user's approved SharePoint membership;
+- audit trails can distinguish ARIA activity from a human administrator's
+  personal account.
+
+Tenant-wide admin consent authorizes the app to request the delegated scopes. It
+does not make the app operate independently of a user, and it does not make ARIA
+act as every user in the tenant. If a different user signs in later, the
+verifier fails because the runtime identity no longer matches the handoff.
+
+For stricter control, the customer can also configure the Enterprise
+Application to require user assignment and assign only the dedicated integration
+user or an approved group.
 
 `--sharepoint-folder-url` must be a path accepted by SharePoint Online commands,
 for example `/Shared Documents/ARIA` or `Shared Documents/ARIA`. Do not use a

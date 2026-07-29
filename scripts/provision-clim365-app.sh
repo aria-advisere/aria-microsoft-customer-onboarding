@@ -68,7 +68,7 @@ Required before running:
 Inputs:
   --name NAME                       App Registration display name.
   --tenant-id UUID                  Expected Microsoft tenant. Must match az account show.
-  --integration-user-upn UPN        User who will authorize the device-code login.
+  --integration-user-upn UPN        Dedicated delegated user ARIA will use and verify.
   --worker-user-upn UPN             Backward-compatible alias for --integration-user-upn.
   --enable-outlook                  Include Mail.ReadWrite and Mail.Send for the user's mailbox.
   --enable-calendar                 Include Calendars.ReadWrite for the user's calendar.
@@ -119,6 +119,8 @@ print_input_template() {
   cat <<'EOF'
 # Fill these values before running the Microsoft 365 onboarding script.
 # Do not put passwords, MFA codes, refresh tokens, or client secrets in this file.
+# INTEGRATION_USER_UPN is the dedicated delegated runtime identity, not a tenant
+# restriction on the App Registration.
 MICROSOFT_TENANT_ID="00000000-0000-0000-0000-000000000000"
 INTEGRATION_USER_UPN="aria.integration@contoso.com"
 APP_NAME="ARIA - Contoso - Microsoft 365 Integration"
