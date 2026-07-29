@@ -24,10 +24,23 @@ The Microsoft 365 delegated integration track also requires:
 
 - Azure CLI (`az`);
 - CLI for Microsoft 365 (`m365`) version `11.10.0`;
-- permission to create App Registrations and Enterprise Applications in the
-  customer Microsoft tenant;
-- Global Administrator, or equivalent consent authority, if the script should
-  grant admin consent.
+- a Microsoft Entra user that can create and manage App Registrations and
+  Enterprise Applications in the customer Microsoft tenant;
+- admin-consent authority if the script should grant tenant-wide admin consent.
+
+For the full script path, including admin consent, sign in with a Microsoft
+Entra user assigned one of these roles:
+
+- Cloud Application Administrator;
+- Application Administrator;
+- Privileged Role Administrator;
+- Global Administrator.
+
+`Cloud Application Administrator` or `Application Administrator` is normally
+enough for this package because it requests delegated permissions only. If the
+customer separates app creation from admin consent, run the script with
+`--skip-admin-consent`, then have an authorized administrator review and grant
+admin consent separately.
 
 After cloning or downloading this repository, check the workstation first:
 

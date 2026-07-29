@@ -59,6 +59,11 @@ Required before running:
   npm install -g @pnp/cli-microsoft365@11.10.0
   m365 version
   az login --tenant <TENANT_ID> --allow-no-subscriptions
+  The az login user must be able to create/manage App Registrations and
+  Enterprise Applications. Use Cloud Application Administrator, Application
+  Administrator, Privileged Role Administrator, or Global Administrator for the
+  full script path with tenant-wide admin consent. If consent is handled by a
+  separate administrator, run this script with --skip-admin-consent.
 
 Inputs:
   --name NAME                       App Registration display name.

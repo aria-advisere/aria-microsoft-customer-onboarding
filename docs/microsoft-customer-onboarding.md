@@ -56,10 +56,25 @@ The customer Microsoft administrator needs:
 - Node.js 20+ and npm;
 - `jq`;
 - a private output folder for generated artifacts;
-- permission to create App Registrations and Enterprise Applications in Entra;
-- Global Administrator, or equivalent consent authority, if the script should
-  grant admin consent;
+- a Microsoft Entra user that can create and manage App Registrations and
+  Enterprise Applications in the customer Microsoft tenant;
+- admin-consent authority if the script should grant tenant-wide admin consent;
 - Azure CLI (`az`) for the Microsoft 365 delegated integration track.
+
+For the full Microsoft 365 delegated integration script path, including admin
+consent, the user authenticated with `az login` should have one of these
+Microsoft Entra roles:
+
+- Cloud Application Administrator;
+- Application Administrator;
+- Privileged Role Administrator;
+- Global Administrator.
+
+`Cloud Application Administrator` or `Application Administrator` is normally
+enough for this package because it requests delegated permissions only. If the
+customer separates app creation from admin consent, run
+`provision-clim365-app.sh` with `--skip-admin-consent`, then have an authorized
+administrator review and grant admin consent separately.
 
 Install only the CLI required for the selected track:
 
