@@ -1,0 +1,11 @@
+# Generated onboarding outputs
+/aria-*-microsoft/
+/out/
+
+# Local notes and environment files
+.env
+.env.*
+*.local
+
+# Logs
+*.log

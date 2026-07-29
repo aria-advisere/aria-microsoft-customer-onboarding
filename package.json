@@ -1,0 +1,17 @@
+{
+  "name": "@aria/microsoft-customer-onboarding",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Customer-facing ARIA Microsoft 365 and Microsoft Teams onboarding package.",
+  "scripts": {
+    "test": "bash -n scripts/*.sh",
+    "help:microsoft365": "bash scripts/provision-clim365-app.sh --help",
+    "template:microsoft365": "bash scripts/provision-clim365-app.sh --print-input-template",
+    "verify:microsoft365:help": "bash scripts/verify-clim365-access.sh --help",
+    "help:teams": "bash scripts/provision-aria-msteams-bot.sh --help",
+    "validate:teams:help": "bash scripts/validate-msteams-handoff.sh --help"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
