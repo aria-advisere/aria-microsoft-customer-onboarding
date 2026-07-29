@@ -477,10 +477,18 @@ fi
 ADMIN_CONSENT_GRANTED=false
 if [[ "$GRANT_ADMIN_CONSENT" == true ]]; then
   echo "==> Granting admin consent for declared scopes"
-  az ad app permission admin-consent \
+  ADMIN_CONSENT_ATTEMPT=1
+  until az ad app permission admin-consent \
     --id "$APP_ID" \
     --output none \
-    --only-show-errors
+    --only-show-errors; do
+    if [[ "$ADMIN_CONSENT_ATTEMPT" -ge 5 ]]; then
+      die "admin consent failed after ${ADMIN_CONSENT_ATTEMPT} attempts; retry with --existing-app-id $APP_ID after Entra propagation completes"
+    fi
+    echo "==> Admin consent not ready yet; retrying after Entra propagation (${ADMIN_CONSENT_ATTEMPT}/5)"
+    sleep $((ADMIN_CONSENT_ATTEMPT * 5))
+    ADMIN_CONSENT_ATTEMPT=$((ADMIN_CONSENT_ATTEMPT + 1))
+  done
   ADMIN_CONSENT_GRANTED=true
 else
   echo "==> Admin consent skipped by --skip-admin-consent"
