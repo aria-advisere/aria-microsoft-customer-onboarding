@@ -51,16 +51,21 @@ integration UPN, SharePoint URL, or customer legal URLs.
 
 The customer Microsoft administrator needs:
 
+- a Bash-compatible shell, such as macOS, Linux, WSL, or a CI runner with Bash;
+- Git, or a ZIP download of the customer onboarding repository;
+- Node.js 20+ and npm;
+- `jq`;
+- a private output folder for generated artifacts;
 - permission to create App Registrations and Enterprise Applications in Entra;
 - Global Administrator, or equivalent consent authority, if the script should
   grant admin consent;
-- Node.js 20+ and `jq`;
-- a private output folder for generated artifacts.
+- Azure CLI (`az`) for the Microsoft 365 delegated integration track.
 
 Install only the CLI required for the selected track:
 
 ```bash
 # Microsoft 365 delegated integration only
+az version
 npm install -g @pnp/cli-microsoft365@11.10.0
 m365 version
 

@@ -10,6 +10,48 @@ ARIA. It covers two independent tracks:
 The tracks are independent. Running one track does not require running the
 other.
 
+## Prerequisites
+
+All tracks require:
+
+- a Bash-compatible shell, such as macOS, Linux, WSL, or a CI runner with Bash;
+- Git, or a ZIP download of this repository;
+- Node.js 20+ and npm;
+- `jq`;
+- a private output folder for generated handoff artifacts.
+
+The Microsoft 365 delegated integration track also requires:
+
+- Azure CLI (`az`);
+- CLI for Microsoft 365 (`m365`) version `11.10.0`;
+- permission to create App Registrations and Enterprise Applications in the
+  customer Microsoft tenant;
+- Global Administrator, or equivalent consent authority, if the script should
+  grant admin consent.
+
+Install and preflight the Microsoft 365 tools:
+
+```bash
+node --version
+npm --version
+jq --version
+az version
+npm install -g @pnp/cli-microsoft365@11.10.0
+m365 version
+```
+
+Before running the Microsoft 365 provisioning script, sign in to the target
+customer tenant:
+
+```bash
+az login --tenant <MICROSOFT_TENANT_ID> --allow-no-subscriptions
+az account show --query '{tenantId:tenantId,user:user.name}' --output json
+```
+
+The Microsoft Teams channel track also requires `unzip` and Microsoft Teams CLI
+`3.0.3`, but Teams is optional and is not needed for Microsoft 365-only
+onboarding.
+
 ## Quick Start
 
 From this package directory:
