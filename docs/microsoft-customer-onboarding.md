@@ -28,7 +28,8 @@ The customer owns Microsoft tenant facts:
 
 - Microsoft Tenant ID;
 - Microsoft administrator account and consent authority;
-- integration user UPN, mailbox, calendar, OneDrive, and SharePoint membership;
+- Microsoft account licensing and access for the agreed delegated runtime user,
+  including mailbox, calendar, OneDrive, and SharePoint membership;
 - SharePoint site URL and folder path;
 - Teams app publisher/developer name, legal URLs, installation policy, and
   catalog approval policy;
@@ -38,6 +39,8 @@ ARIA owns ARIA runtime facts:
 
 - ARIA stage, for example `staging`;
 - ARIA tenant/instance ID, for example `contoso`;
+- expected delegated runtime user UPN after it has been agreed with the
+  customer, for example `aria.integration@contoso.com`;
 - public Teams messaging endpoint, if the Teams channel is enabled;
 - target Secrets Manager names under `aria/<stage>/tenant/<tenant_id>/...`;
 - gateway runtime provider setting, channel overlay, allowlists, and runtime
@@ -45,7 +48,8 @@ ARIA owns ARIA runtime facts:
 
 The scripts generate the Microsoft IDs and handoff artifacts that the ARIA
 operator needs. ARIA should not invent the customer Microsoft Tenant ID,
-integration UPN, SharePoint URL, or customer legal URLs.
+SharePoint URL, or customer legal URLs. The delegated runtime UPN can be added
+by ARIA during the operator seed step when it is already known or agreed.
 
 ## Common Prerequisites
 
@@ -164,7 +168,6 @@ The customer must resolve or approve these values before running the script.
 | Input | Example | Owner | Notes |
 | --- | --- | --- | --- |
 | Microsoft Tenant ID | `00000000-0000-0000-0000-000000000000` | Customer | Used by `az login` and `--tenant-id`; prevents wrong-tenant setup |
-| Integration user UPN | `aria.integration@contoso.com` | Customer | Dedicated non-admin user that ARIA will use for delegated login and runtime verification |
 | Enabled workloads | Outlook, Calendar, SharePoint, Drive | Customer + ARIA | Use `--disable-*` flags to reduce scope |
 | Microsoft 365 app display name | `ARIA - Contoso - Microsoft 365 Integration` | Customer + ARIA | Naming convention can be suggested by ARIA, approved by customer |
 | SharePoint site URL | `https://contoso.sharepoint.com/sites/ARIA` | Customer | Required only when SharePoint is enabled |
@@ -175,16 +178,19 @@ The customer must resolve or approve these values before running the script.
 `SHAREPOINT_SITE_ID` is not an input. Microsoft Graph resolves it by path after
 the first delegated login.
 
-### Why The Integration User UPN Is Required
+### Why ARIA Sets An Integration User UPN Later
 
 The App Registration is single-tenant, so any allowed user in that Microsoft
 tenant could technically complete a delegated device-code login after consent.
 However, `clim365` runs with the effective permissions of the signed-in user,
 not as a tenant-wide app-only identity.
 
-ARIA therefore binds the integration to one declared, dedicated user. That UPN
-lets the handoff and verifier confirm that the runtime login was completed as
-the intended identity. It also makes the security boundary predictable:
+The integration user UPN is not required to create the App Registration. It is
+required before ARIA performs the runtime `m365 login` and verification. ARIA
+therefore binds the runtime integration to one declared, dedicated user during
+the operator seed step. That UPN lets the handoff and verifier confirm that the
+runtime login was completed as the intended identity. It also makes the
+security boundary predictable:
 
 - Outlook and Calendar actions apply to that user's mailbox and calendar;
 - OneDrive actions apply to that user's OneDrive, if Drive is enabled;
@@ -195,7 +201,8 @@ the intended identity. It also makes the security boundary predictable:
 Tenant-wide admin consent authorizes the app to request the delegated scopes. It
 does not make the app operate independently of a user, and it does not make ARIA
 act as every user in the tenant. If a different user signs in later, the
-verifier fails because the runtime identity no longer matches the handoff.
+verifier fails because the runtime identity no longer matches the completed
+handoff.
 
 For stricter control, the customer can also configure the Enterprise
 Application to require user assignment and assign only the dedicated integration
@@ -220,6 +227,9 @@ ARIA should provide only the ARIA-side intent and execution package:
 - requested workload list, for example Outlook + Calendar + SharePoint, no
   Drive;
 - suggested app display-name convention;
+- optional expected delegated runtime user UPN, only if ARIA wants the customer
+  to include it in the handoff metadata. This value is not needed to create the
+  App Registration;
 - approved secure handoff channel for generated artifacts;
 - ARIA stage and ARIA tenant ID only so the operator can later seed the correct
   secret. These values are not Microsoft script inputs.
@@ -233,12 +243,15 @@ az account show --query '{tenantId:tenantId,user:user.name}' --output json
 ./scripts/provision-clim365-app.sh \
   --name "ARIA - Contoso - Microsoft 365 Integration" \
   --tenant-id "<MICROSOFT_TENANT_ID>" \
-  --integration-user-upn "aria.integration@contoso.com" \
   --enable-all \
   --sharepoint-site-url "https://contoso.sharepoint.com/sites/ARIA" \
   --sharepoint-folder-url "Shared Documents/ARIA" \
   --output-dir "./aria-contoso-microsoft"
 ```
+
+`--integration-user-upn` is optional metadata for the generated handoff. It is
+not required to create the App Registration. If it is omitted, the ARIA operator
+adds the expected delegated runtime user during the seed step.
 
 The script creates:
 
@@ -291,7 +304,7 @@ The customer sends these artifacts to ARIA:
 
 | Artifact | Sensitivity | Required by ARIA | Notes |
 | --- | --- | --- | --- |
-| `aria-m365-integration-handoff.json` | Internal, non-secret | Yes | Contains App ID, Tenant ID, UPN, workload flags, scopes, SharePoint URL/folder, and runtime config |
+| `aria-m365-integration-handoff.json` | Internal, non-secret | Yes | Contains App ID, Tenant ID, workload flags, scopes, SharePoint URL/folder, runtime config, and optional delegated runtime UPN metadata |
 | Admin consent confirmation | Internal | Yes | Human confirmation or audit evidence that consent was granted or intentionally skipped |
 | Integration user access confirmation | Internal | Yes | Confirms mailbox/calendar licensing and approved SharePoint membership |
 
@@ -306,6 +319,9 @@ CLIMICROSOFT365_ENTRAAPPID=<app/client id>
 CLIMICROSOFT365_TENANT=<tenant id>
 ```
 
+If the handoff does not include delegated runtime UPN metadata, ARIA adds that
+value during the operator seed step.
+
 ### ARIA Operator Settings
 
 After receiving the handoff, the ARIA operator applies Microsoft 365 settings
@@ -316,7 +332,8 @@ to the ARIA tenant:
    ```bash
    # ARIA internal repository; this script is not included in the customer package.
    ./scripts/seed-tenant-clim365-secrets.sh <aria-stage> <aria-tenant-id> \
-     --handoff ./aria-contoso-microsoft/aria-m365-integration-handoff.json
+     --handoff ./aria-contoso-microsoft/aria-m365-integration-handoff.json \
+     --integration-user-upn "<integration-user-upn>"
    ```
 
    This writes:

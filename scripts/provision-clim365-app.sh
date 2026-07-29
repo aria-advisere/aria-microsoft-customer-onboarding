@@ -43,7 +43,6 @@ Usage:
   provision-clim365-app.sh \
     --name "ARIA - Contoso - Microsoft 365 Integration" \
     --tenant-id 00000000-0000-0000-0000-000000000000 \
-    --integration-user-upn aria.integration@contoso.com \
     --enable-all \
     --sharepoint-site-url "https://contoso.sharepoint.com/sites/ARIA" \
     --sharepoint-folder-url "Shared Documents/ARIA" \
@@ -68,7 +67,7 @@ Required before running:
 Inputs:
   --name NAME                       App Registration display name.
   --tenant-id UUID                  Expected Microsoft tenant. Must match az account show.
-  --integration-user-upn UPN        Dedicated delegated user ARIA will use and verify.
+  --integration-user-upn UPN        Optional handoff metadata. ARIA can set this later.
   --worker-user-upn UPN             Backward-compatible alias for --integration-user-upn.
   --enable-outlook                  Include Mail.ReadWrite and Mail.Send for the user's mailbox.
   --enable-calendar                 Include Calendars.ReadWrite for the user's calendar.
@@ -119,10 +118,7 @@ print_input_template() {
   cat <<'EOF'
 # Fill these values before running the Microsoft 365 onboarding script.
 # Do not put passwords, MFA codes, refresh tokens, or client secrets in this file.
-# INTEGRATION_USER_UPN is the dedicated delegated runtime identity, not a tenant
-# restriction on the App Registration.
 MICROSOFT_TENANT_ID="00000000-0000-0000-0000-000000000000"
-INTEGRATION_USER_UPN="aria.integration@contoso.com"
 APP_NAME="ARIA - Contoso - Microsoft 365 Integration"
 SHAREPOINT_SITE_URL="https://contoso.sharepoint.com/sites/ARIA"
 SHAREPOINT_FOLDER_URL="Shared Documents/ARIA"
@@ -133,11 +129,15 @@ az login --tenant "$MICROSOFT_TENANT_ID" --allow-no-subscriptions
 ./scripts/provision-clim365-app.sh \
   --name "$APP_NAME" \
   --tenant-id "$MICROSOFT_TENANT_ID" \
-  --integration-user-upn "$INTEGRATION_USER_UPN" \
   --enable-all \
   --sharepoint-site-url "$SHAREPOINT_SITE_URL" \
   --sharepoint-folder-url "$SHAREPOINT_FOLDER_URL" \
   --output-dir "$OUTPUT_DIR"
+
+# Optional metadata only. ARIA can also set this during its internal seed step.
+# Add this flag only if ARIA asks the customer admin to include the expected
+# delegated runtime identity in the handoff:
+#   --integration-user-upn "aria.integration@contoso.com"
 EOF
 }
 
@@ -264,14 +264,15 @@ done
 
 [[ -n "$APP_NAME" ]] || die "--name is required"
 [[ -n "$EXPECTED_TENANT_ID" ]] || die "--tenant-id is required"
-[[ -n "$INTEGRATION_USER_UPN" ]] || die "--integration-user-upn is required"
 [[ -n "$OUTPUT_DIR" ]] || die "--output-dir is required"
 [[ "$ENABLE_OUTLOOK" == true || "$ENABLE_CALENDAR" == true ||
   "$ENABLE_SHAREPOINT" == true || "$ENABLE_DRIVE" == true ]] ||
   die "select at least one workload: --enable-outlook, --enable-calendar, --enable-sharepoint, or --enable-drive"
 is_uuid "$EXPECTED_TENANT_ID" || die "--tenant-id is not a valid UUID"
-[[ "$INTEGRATION_USER_UPN" =~ ^[^[:space:]@]+@[^[:space:]@]+$ ]] ||
-  die "--integration-user-upn does not look like a valid UPN"
+if [[ -n "$INTEGRATION_USER_UPN" ]]; then
+  [[ "$INTEGRATION_USER_UPN" =~ ^[^[:space:]@]+@[^[:space:]@]+$ ]] ||
+    die "--integration-user-upn does not look like a valid UPN"
+fi
 if [[ "$ENABLE_SHAREPOINT" == true ]]; then
   [[ -n "$SHAREPOINT_SITE_URL" ]] || die "--sharepoint-site-url is required with --enable-sharepoint"
   [[ -n "$SHAREPOINT_FOLDER_URL" ]] || die "--sharepoint-folder-url is required with --enable-sharepoint"
@@ -557,7 +558,9 @@ jq -n \
       }
     },
     delegatedIdentity: {
-      userPrincipalName: $integrationUserUpn,
+      userPrincipalName: (if $integrationUserUpn == "" then null else $integrationUserUpn end),
+      requiredBeforeRuntimeLogin: true,
+      source: (if $integrationUserUpn == "" then "aria-operator" else "customer-handoff-metadata" end),
       accessBoundary: "The app cannot exceed the permissions of this signed-in user."
     },
     sharePoint: (if $workloads.sharePoint then {
@@ -595,6 +598,10 @@ echo "    Tenant ID: $EXPECTED_TENANT_ID"
 echo ""
 echo "Next step: the ARIA operator configures these two IDs and runs once:"
 echo "  m365 login --authType deviceCode --appId $APP_ID --tenant $EXPECTED_TENANT_ID"
-echo "The login must be completed as: $INTEGRATION_USER_UPN"
+if [[ -n "$INTEGRATION_USER_UPN" ]]; then
+  echo "The login must be completed as: $INTEGRATION_USER_UPN"
+else
+  echo "ARIA must set the delegated integration user UPN before runtime login and verification."
+fi
 echo "Then verify enabled workloads and resolve the Site ID:"
 echo "  ./scripts/verify-clim365-access.sh --handoff \"$HANDOFF_FILE\""
