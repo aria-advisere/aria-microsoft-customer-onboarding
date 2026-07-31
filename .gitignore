@@ -9,3 +9,7 @@
 
 # Logs
 *.log
+
+# Temporary Teams SDK echo-bot dependencies and build output
+/tools/teams-echo-bot/node_modules/
+/tools/teams-echo-bot/dist/

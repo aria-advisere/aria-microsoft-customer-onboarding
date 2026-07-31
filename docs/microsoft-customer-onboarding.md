@@ -80,7 +80,7 @@ customer separates app creation from admin consent, run
 `provision-clim365-app.sh` with `--skip-admin-consent`, then have an authorized
 administrator review and grant admin consent separately.
 
-Install only the CLI required for the selected track:
+Install the CLI tools required for the selected track:
 
 ```bash
 # Microsoft 365 delegated integration only
@@ -89,7 +89,9 @@ m365 version
 
 # Microsoft Teams channel only
 npm install -g @microsoft/teams.cli@3.0.3
+npm install -g @pnp/cli-microsoft365@11.10.0
 teams --version
+m365 version
 ```
 
 After cloning or downloading the customer onboarding repository, check the
@@ -467,26 +469,78 @@ script.
 | Terms URL | `https://example.com/terms` | Customer + ARIA | Teams manifest terms |
 | Optional icons | `color.png`, `outline.png` | Customer + ARIA | Color 192x192 PNG and outline 32x32 PNG |
 | Installation policy | approved users, teams, chats | Customer | Customer controls where the app is installed |
+| Target Team ID | `00000000-0000-0000-0000-000000000000` | Customer | Team where the app will be installed and Team-scoped RSC will be granted |
+| Test user UPN | `teams-user@example.com` | Customer | User who will install or exercise the app; this user is not used to create the bot |
+| Catalog publisher | Teams Administrator or Global Administrator | Customer | Required when custom app upload or sideloading is restricted |
 
-### ARIA Inputs To Customer
+### ARIA And Test Harness Inputs
 
-ARIA must provide these values before the customer runs the Teams script.
+ARIA provides the production route values. For a standalone SDK test, the
+customer test harness supplies temporary test values instead.
 
-| Input | Example | Why it matters |
-| --- | --- | --- |
-| Customer slug | `contoso` | Traceability in handoff artifacts |
-| ARIA stage | `staging` | Determines ARIA secret path and runtime stage |
-| ARIA tenant ID | `contoso` | Used in the public endpoint route |
-| Messaging endpoint | `https://<api>/teams/contoso/api/messages` | Bot Framework callback URL |
-| Secure handoff instructions | approved secret channel | Required for `aria-msteams-secret.json` |
+| Input | Example | Owner | Applies to |
+| --- | --- | --- | --- |
+| Customer slug | `contoso` | Customer + ARIA | All modes; traceability in handoff artifacts |
+| ARIA stage | `staging` | ARIA | Production `aria` mode; use `test` for SDK validation |
+| ARIA tenant ID | `contoso` | ARIA | Production `aria` route; use a test identifier for SDK validation |
+| Endpoint mode | `aria` or `test` | Customer + ARIA | Selects OpenClaw or the temporary Teams SDK echo bot |
+| Messaging endpoint | `https://<api>/teams/contoso/api/messages` | ARIA in `aria` mode; customer test harness in `test` mode | Bot Framework callback URL |
+| Secure handoff instructions | approved secret channel | ARIA | Required for `aria-msteams-secret.json` |
 
-The Teams endpoint must end exactly with:
+In `aria` mode, the Teams endpoint must end exactly with:
 
 ```text
 /teams/<aria-tenant-id>/api/messages
 ```
 
 Do not include tokens, query strings, or fragments.
+
+In `test` mode, the endpoint must be HTTPS and end with `/api/messages`. This
+mode validates Microsoft provisioning, catalog publication, Team installation,
+RSC consent, and bot messaging without an ARIA/OpenClaw runtime.
+
+### Coexistence With Existing Apps
+
+A new test app can coexist with existing apps and bots in the same Microsoft
+tenant and Team. Each test must use a new App ID, bot ID, and Teams app ID, plus
+a distinct visible name. Installing the new app does not replace an existing
+app. Remove the test app and its Entra registration after validation if it will
+not be promoted to production.
+
+### Automation Boundary
+
+The onboarding uses two separate command-line identities so app creation does
+not inherit tenant-wide app-management access.
+
+| Phase | Script or action | Automated after login | Human or customer responsibility |
+| --- | --- | --- | --- |
+| Workstation setup | `check-m365-prerequisites.sh --track teams` | Detects missing tools | Install approved tools when reported |
+| Bot creation login | `teams login --device-code` | No | Customer completes sign-in, MFA, and tenant selection |
+| App and bot creation | `provision-aria-msteams-bot.sh` | Yes | Review inputs and run the command |
+| Admin identity approval | Dedicated Teams onboarding admin CLI app | One-time only | Global Administrator approves delegated scopes and customer policy |
+| Administrative login | `m365 login --authType deviceCode ...` | No | Global Administrator completes sign-in and MFA |
+| Catalog publication | `publish-install-msteams-app.sh` | Yes | Review the package and requested RSC before running |
+| Team installation and RSC | Same script through Microsoft Graph | Yes | Supply and approve the target Team ID |
+| Live state checks | `verify-msteams-installation.sh` | Yes | Investigate only if a check fails |
+| Messaging check | Teams SDK echo bot and `ping` | Bot response is automatic | A Team member sends the test mention |
+
+The dedicated administrative CLI app needs these delegated Microsoft Graph
+permissions:
+
+```text
+AppCatalog.ReadWrite.All
+TeamsAppInstallation.ReadWriteAndConsentForTeam
+TeamsAppInstallation.ReadForTeam
+Application.Read.All
+```
+
+`Application.Read.All` is used by the live verifier. Microsoft Graph does not
+support application/app-only permission for organization catalog publication,
+so a delegated administrator sign-in remains required. Conditional Access,
+MFA, app approval, the choice of target Team, and the decision to accept the RSC
+set remain customer-controlled steps. An MCP connector is not required for this
+flow; the supported automation boundary is Microsoft Graph through CLI for
+Microsoft 365.
 
 ### Customer Execution
 
@@ -500,6 +554,7 @@ teams status --json
   --aria-tenant-id "contoso" \
   --name "ARIA Contoso" \
   --endpoint "https://<api>/teams/contoso/api/messages" \
+  --endpoint-mode aria \
   --microsoft-tenant-id "<MICROSOFT_TENANT_ID>" \
   --developer-name "ARIA" \
   --website-url "https://example.com" \
@@ -518,7 +573,8 @@ The script:
 
 1. verifies Teams CLI `3.0.3`, login, and Tenant ID;
 2. creates a single-tenant Entra app, Teams app, and Teams-managed bot;
-3. sets the public ARIA endpoint;
+3. sets the public endpoint and records whether it is an `aria` or `test`
+   endpoint;
 4. applies the exact OpenClaw RSC baseline;
 5. sets scopes `personal`, `team`, and `groupChat`;
 6. enables DM file attachments with `supportsFiles: true`;
@@ -556,6 +612,8 @@ The customer sends these artifacts to ARIA:
 | `aria-msteams-app.zip` | Internal | Yes for install/catalog workflows | Teams app package |
 | `manifest.json` | Internal | Recommended | Auditable manifest |
 | `teams-doctor.json` | Internal | Recommended | Teams diagnostics |
+| `aria-msteams-installation.json` | Internal, non-secret | Yes after automated install | Catalog ID, Team ID, actions, checksum, and RSC verification |
+| `aria-msteams-live-verification.json` | Internal, non-secret | Recommended | Independent live verification results |
 
 Send `aria-msteams-secret.json` only through the approved secret channel. Do not
 send it by email, chat, or ticket attachment.
@@ -567,6 +625,54 @@ Before handoff, validate without printing secret values:
   ./aria-contoso-microsoft/aria-msteams-handoff.json \
   ./aria-contoso-microsoft/aria-msteams-secret.json
 ```
+
+### Live Teams SDK Test Without OpenClaw
+
+Use this optional test when the goal is to prove the Microsoft app, bot,
+catalog, Team installation, RSC consent, and messaging path before connecting
+OpenClaw.
+
+1. Install the echo bot dependencies once:
+
+   ```bash
+   cd tools/teams-echo-bot
+   npm ci
+   cd ../..
+   ```
+
+2. Start the echo bot with the generated secret file:
+
+   ```bash
+   ./scripts/start-msteams-echo-bot.sh \
+     --secret-json ./aria-contoso-microsoft/aria-msteams-secret.json \
+     --port 3978
+   ```
+
+3. Expose port `3978` through a customer-approved HTTPS tunnel. Provision the
+   Teams app with the tunnel URL and test endpoint mode:
+
+   ```bash
+   ./scripts/provision-aria-msteams-bot.sh \
+     --customer-slug "contoso-test" \
+     --aria-stage "test" \
+     --aria-tenant-id "contoso-test" \
+     --name "ARIA Contoso Test" \
+     --endpoint "https://<temporary-host>/api/messages" \
+     --endpoint-mode test \
+     --microsoft-tenant-id "<MICROSOFT_TENANT_ID>" \
+     --developer-name "ARIA" \
+     --website-url "https://example.com" \
+     --privacy-url "https://example.com/privacy" \
+     --terms-url "https://example.com/terms" \
+     --output-dir "./aria-contoso-test-microsoft"
+   ```
+
+4. Publish and install the package as described below. In a Team channel,
+   mention the bot and send `ping`. A successful response contains `ARIA Teams
+   onboarding test passed` and a UTC timestamp.
+
+5. Stop the echo bot and tunnel after the test. The temporary endpoint is not a
+   production service.
 
 ### ARIA Operator Settings
 
@@ -611,11 +717,30 @@ settings to the ARIA tenant:
 The Teams operator settings do not set `CLIMICROSOFT365_*`, do not store a
 `microsoft365` handoff, and do not change `workspaceProvider`.
 
-### Install Or Approve The Teams App
+### Publish And Install The Teams App
 
-For a controlled test, open the `installLink` from the handoff and install the
-app for the test user. For teams/chats, the installer sees and accepts RSC for
-that specific resource.
+The default repeatable path is the administrative script. After the one-time
+approval of the dedicated CLI app, the administrator signs in and runs:
+
+```bash
+m365 login --authType deviceCode \
+  --appId <TEAMS_ONBOARDING_ADMIN_CLI_APP_ID> \
+  --tenant <MICROSOFT_TENANT_ID>
+
+./scripts/publish-install-msteams-app.sh \
+  --handoff ./aria-contoso-microsoft/aria-msteams-handoff.json \
+  --team-id <TARGET_TEAM_ID>
+```
+
+The script verifies the package checksum, reuses or creates the organization
+catalog entry, installs the app in the Team through Microsoft Graph with the
+exact `consentedPermissionSet`, verifies the resulting Team RSC grants, and
+writes `aria-msteams-installation.json`. It is safe to rerun.
+
+If the customer chooses a manual fallback, a Teams Administrator or Global
+Administrator can upload `aria-msteams-app.zip` in Teams Admin Center and a Team
+owner can install it through Teams UI. This fallback is not required when the
+administrative script is authorized.
 
 For the organization catalog:
 
@@ -633,9 +758,28 @@ not supported for this operation. Do not add these permissions to the runtime
 for onboarding convenience; use a separate administrative identity and remove
 the scope after completion.
 
-After publication, `m365 teams app install` can install from the catalog by
-`teamId` or user. The `id` accepted by that command is the catalog ID, not the
-manifest ID.
+Install the published app in the target **Team**, not in an individual standard
+channel. The Team installation makes the bot available in that Team's channels
+and is the resource on which Team-scoped RSC is granted.
+
+`m365 teams app install` alone is not used because it does not submit the RSC
+`consentedPermissionSet`. The administrative script calls Microsoft Graph
+directly for installation and uses the catalog ID returned by publication, not
+the manifest ID.
+
+After installation, validate the live state with an appropriately scoped
+administrative `m365` connection:
+
+```bash
+./scripts/verify-msteams-installation.sh \
+  --handoff ./aria-contoso-microsoft/aria-msteams-handoff.json \
+  --team-id <TARGET_TEAM_ID> \
+  --test-user-upn teams-user@example.com
+```
+
+The verifier writes `aria-msteams-live-verification.json` and checks the Teams
+Developer Portal app, single-tenant Entra registration, organization catalog,
+Team installation, exact Team RSC grants, and optional personal installation.
 
 ## Operation And Revocation
 
