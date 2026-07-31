@@ -1,0 +1,22 @@
+{
+  "name": "@aria/msteams-onboarding-echo-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Temporary Microsoft Teams SDK echo bot for validating ARIA customer onboarding.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@microsoft/teams.apps": "2.0.14"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

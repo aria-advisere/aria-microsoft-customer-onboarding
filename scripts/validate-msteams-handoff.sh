@@ -69,7 +69,19 @@ jq -e '
     and .doctorClassification.nonSsoFailures == 0
     and .doctorClassification.ssoRequiredByAria == false
     and (.aria.tenantId | test("^[a-z0-9][a-z0-9-]{0,62}$"))
-    and (.aria.messagingEndpoint | endswith("/teams/" + $handoff.aria.tenantId + "/api/messages"))
+    and (
+      ($handoff.aria.endpointMode // "aria") as $endpointMode
+      | if $endpointMode == "aria" then
+          (.aria.messagingEndpoint
+            | startswith("https://")
+              and endswith("/teams/" + $handoff.aria.tenantId + "/api/messages"))
+        elif $endpointMode == "test" then
+          (.aria.messagingEndpoint
+            | startswith("https://") and endswith("/api/messages"))
+        else
+          false
+        end
+    )
 ' "$PUBLIC_FILE" >/dev/null || die "invalid public handoff"
 
 BOT_APP_ID="$(jq -r '.microsoft.botAppId' "$PUBLIC_FILE")"

@@ -26,6 +26,7 @@ ARIA_STAGE=""
 ARIA_TENANT_ID=""
 APP_NAME=""
 ENDPOINT=""
+ENDPOINT_MODE="aria"
 EXPECTED_MICROSOFT_TENANT_ID=""
 OUTPUT_DIR=""
 DEVELOPER_NAME=""
@@ -44,6 +45,7 @@ Usage:
     --aria-tenant-id contoso \
     --name "ARIA Contoso" \
     --endpoint "https://<aria-api>/teams/contoso/api/messages" \
+    --endpoint-mode aria \
     --microsoft-tenant-id 00000000-0000-0000-0000-000000000000 \
     --developer-name "ARIA" \
     --website-url "https://example.com" \
@@ -57,6 +59,9 @@ Required inputs:
   --aria-tenant-id ID           ARIA tenant/instance ID included in the endpoint.
   --name NAME                   Visible Teams app name, max 30 characters.
   --endpoint HTTPS_URL          Public ARIA endpoint ending in /api/messages.
+  --endpoint-mode MODE          aria (default) or test. aria requires the
+                                tenant-specific ARIA route. test accepts a
+                                temporary HTTPS echo-bot /api/messages route.
   --microsoft-tenant-id UUID    Expected Microsoft tenant; prevents wrong-tenant setup.
   --developer-name NAME         Publisher/developer shown by Teams.
   --website-url HTTPS_URL       Publisher website.
@@ -74,10 +79,11 @@ Prerequisites:
   npm install -g @microsoft/teams.cli@3.0.3
   teams login
 
-The script creates resources in the signed-in Microsoft tenant. It does not
-automatically publish the app to the organizational catalog or install it in
-teams. It returns the package and install link so the administrator controls
-the installation scope.
+The script creates resources in the signed-in Microsoft tenant. Test endpoints
+must never be used for production. Catalog publication and Team installation
+are intentionally handled by the separate publish-install-msteams-app.sh
+administrative script so bot creation permissions remain separate from tenant
+app-management permissions.
 EOF
 }
 
@@ -154,6 +160,11 @@ while [[ $# -gt 0 ]]; do
       ENDPOINT="$2"
       shift 2
       ;;
+    --endpoint-mode)
+      [[ $# -ge 2 ]] || die "--endpoint-mode requires a value"
+      ENDPOINT_MODE="$2"
+      shift 2
+      ;;
     --microsoft-tenant-id)
       [[ $# -ge 2 ]] || die "--microsoft-tenant-id requires a value"
       EXPECTED_MICROSOFT_TENANT_ID="$2"
@@ -218,8 +229,19 @@ is_uuid "$EXPECTED_MICROSOFT_TENANT_ID" ||
   die "--microsoft-tenant-id is not a valid UUID"
 [[ "${#APP_NAME}" -le 30 ]] || die "--name cannot exceed 30 characters"
 is_https_url "$ENDPOINT" || die "--endpoint must be HTTPS"
-[[ "$ENDPOINT" == */teams/"$ARIA_TENANT_ID"/api/messages ]] ||
-  die "--endpoint must end with /teams/$ARIA_TENANT_ID/api/messages"
+case "$ENDPOINT_MODE" in
+  aria)
+    [[ "$ENDPOINT" == */teams/"$ARIA_TENANT_ID"/api/messages ]] ||
+      die "--endpoint must end with /teams/$ARIA_TENANT_ID/api/messages in aria mode"
+    ;;
+  test)
+    [[ "$ENDPOINT" == */api/messages ]] ||
+      die "--endpoint must end with /api/messages in test mode"
+    ;;
+  *)
+    die "--endpoint-mode must be aria or test"
+    ;;
+esac
 is_https_url "$WEBSITE_URL" || die "--website-url must be HTTPS"
 is_https_url "$PRIVACY_URL" || die "--privacy-url must be HTTPS"
 is_https_url "$TERMS_URL" || die "--terms-url must be HTTPS"
@@ -380,6 +402,7 @@ jq -n \
   --arg ariaStage "$ARIA_STAGE" \
   --arg ariaTenantId "$ARIA_TENANT_ID" \
   --arg endpoint "$ENDPOINT" \
+  --arg endpointMode "$ENDPOINT_MODE" \
   --arg microsoftTenantId "$TENANT_ID" \
   --arg teamsAppId "$TEAMS_APP_ID" \
   --arg botAppId "$BOT_APP_ID" \
@@ -403,6 +426,7 @@ jq -n \
       stage: $ariaStage,
       tenantId: $ariaTenantId,
       messagingEndpoint: $endpoint,
+      endpointMode: $endpointMode,
       secretName: ("aria/" + $ariaStage + "/tenant/" + $ariaTenantId + "/msteams")
     },
     microsoft: {
@@ -441,6 +465,11 @@ echo "    Handoff for ARIA (without secret): $PUBLIC_HANDOFF"
 echo "    Secret for approved secure channel: $SECRET_HANDOFF"
 echo "    Teams app package:              $PACKAGE_FILE"
 echo "    Diagnostics:                    $DOCTOR_FILE"
+if [[ "$ENDPOINT_MODE" == "test" ]]; then
+  echo "    Endpoint mode:                  temporary test"
+  echo ""
+  echo "WARNING: Replace the temporary test endpoint before production use."
+fi
 echo ""
 echo "The Microsoft administrator must install/approve the app only for authorized"
 echo "users, teams, or chats. Install link:"

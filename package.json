@@ -5,12 +5,17 @@
   "description": "Customer-facing ARIA Microsoft 365 and Microsoft Teams onboarding package.",
   "scripts": {
     "test": "bash -n scripts/*.sh",
-    "check:microsoft365": "bash scripts/check-m365-prerequisites.sh",
+    "check:microsoft365": "bash scripts/check-m365-prerequisites.sh --track microsoft365",
+    "check:teams": "bash scripts/check-m365-prerequisites.sh --track teams",
     "help:microsoft365": "bash scripts/provision-clim365-app.sh --help",
     "template:microsoft365": "bash scripts/provision-clim365-app.sh --print-input-template",
     "verify:microsoft365:help": "bash scripts/verify-clim365-access.sh --help",
     "help:teams": "bash scripts/provision-aria-msteams-bot.sh --help",
-    "validate:teams:help": "bash scripts/validate-msteams-handoff.sh --help"
+    "validate:teams:help": "bash scripts/validate-msteams-handoff.sh --help",
+    "install:teams:help": "bash scripts/publish-install-msteams-app.sh --help",
+    "verify:teams:help": "bash scripts/verify-msteams-installation.sh --help",
+    "echo:teams:help": "bash scripts/start-msteams-echo-bot.sh --help",
+    "echo:teams:build": "npm --prefix tools/teams-echo-bot run build"
   },
   "engines": {
     "node": ">=20"

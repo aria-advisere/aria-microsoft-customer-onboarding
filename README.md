@@ -42,10 +42,11 @@ customer separates app creation from admin consent, run the script with
 `--skip-admin-consent`, then have an authorized administrator review and grant
 admin consent separately.
 
-After cloning or downloading this repository, check the workstation first:
+After cloning or downloading this repository, check only the selected track:
 
 ```bash
-./scripts/check-m365-prerequisites.sh
+./scripts/check-m365-prerequisites.sh --track microsoft365
+./scripts/check-m365-prerequisites.sh --track teams
 ```
 
 If the checker reports missing tools, install the missing prerequisites and run
@@ -121,19 +122,41 @@ az login --tenant <MICROSOFT_TENANT_ID> --allow-no-subscriptions
 az account show --query '{tenantId:tenantId,user:user.name}' --output json
 ```
 
-The Microsoft Teams channel track also requires `unzip` and Microsoft Teams CLI
-`3.0.3`, but Teams is optional and is not needed for Microsoft 365-only
-onboarding.
+The full Microsoft Teams channel track requires `unzip`, Microsoft Teams CLI
+`3.0.3`, and CLI for Microsoft 365 `11.10.0`. Azure CLI is not required for the
+Teams-only track. Teams remains optional and is not needed for Microsoft
+365-only onboarding.
+
+Install the Teams CLI only on workstations that run the Teams channel track:
+
+```bash
+npm install -g @microsoft/teams.cli@3.0.3
+npm install -g @pnp/cli-microsoft365@11.10.0
+./scripts/check-m365-prerequisites.sh --track teams
+teams login --device-code
+```
+
+The optional live echo-bot test also requires a customer-approved HTTPS tunnel.
+The package includes the Teams SDK bot; install its pinned dependencies with:
+
+```bash
+cd tools/teams-echo-bot
+npm ci
+```
 
 ## Quick Start
 
 From this package directory:
 
 ```bash
-./scripts/check-m365-prerequisites.sh
+./scripts/check-m365-prerequisites.sh --track microsoft365
+./scripts/check-m365-prerequisites.sh --track teams
 ./scripts/provision-clim365-app.sh --help
 ./scripts/provision-clim365-app.sh --print-input-template
 ./scripts/provision-aria-msteams-bot.sh --help
+./scripts/publish-install-msteams-app.sh --help
+./scripts/verify-msteams-installation.sh --help
+./scripts/start-msteams-echo-bot.sh --help
 ```
 
 Use the detailed guide in
@@ -145,10 +168,14 @@ Use the detailed guide in
 | --- | --- | --- |
 | `docs/microsoft-customer-onboarding.md` | Customer admin and ARIA operator | Full onboarding guide, ownership model, inputs, outputs, and operator settings |
 | `scripts/provision-clim365-app.sh` | Customer admin | Creates or updates the Microsoft 365 delegated App Registration |
-| `scripts/check-m365-prerequisites.sh` | Customer admin | Checks local tools required for Microsoft 365 delegated onboarding |
+| `scripts/check-m365-prerequisites.sh` | Customer admin | Checks local tools for the selected Microsoft 365 or Teams track |
 | `scripts/verify-clim365-access.sh` | Customer admin or ARIA operator | Verifies delegated CLI for Microsoft 365 access after login |
 | `scripts/provision-aria-msteams-bot.sh` | Customer admin | Creates the optional Microsoft Teams app and bot package |
 | `scripts/validate-msteams-handoff.sh` | Customer admin or ARIA operator | Validates Teams handoff files without printing secret values |
+| `scripts/publish-install-msteams-app.sh` | Customer Global Administrator | Publishes the package and installs it in a Team with explicit RSC consent through Microsoft Graph |
+| `scripts/verify-msteams-installation.sh` | Customer admin | Verifies the live app, bot, catalog, Team installation, and RSC grants |
+| `scripts/start-msteams-echo-bot.sh` | Customer admin or tester | Starts the optional temporary Teams SDK echo bot |
+| `tools/teams-echo-bot/` | Customer admin or tester | Pinned Microsoft Teams SDK echo-bot project for live testing without OpenClaw |
 | `examples/microsoft-365-inputs.env.example` | Customer admin | Fillable reference for Microsoft 365 inputs |
 | `examples/teams-inputs.env.example` | Customer admin and ARIA operator | Fillable reference for Teams channel inputs |
 | `MANIFEST.md` | Customer admin and ARIA operator | Sendable-package inventory and produced artifacts |
